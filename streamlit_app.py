@@ -68,10 +68,8 @@ password_gate()
 
 # ---------------------------------------------------------------- cached resources
 @st.cache_resource(max_entries=1, show_spinner="Loading the models (takes a moment when the folder changes)...")
-def get_models(checkpoint_dir: str, device_str: str):
+def get_models(checkpoint_dir: str, device_str: str, stamp: tuple):    # `stamp` only keys the cache (new files -> reload)
     try:
-        if os.path.abspath(checkpoint_dir) == os.path.abspath(DEFAULT_CHECKPOINT_DIR):
-            fetch_weights.ensure_weights(checkpoint_dir)  # downloads only into the default folder, and only if files are missing
         return core.load_models(checkpoint_dir, None, torch.device(device_str))
     except SystemExit as e:                       # load_models exits with a message on problems
         raise RuntimeError(str(e))
@@ -142,7 +140,11 @@ if uploaded is not None:
 
     if run:
         try:
-            models = get_models(ckpt_dir, device_str)
+            if (os.path.abspath(ckpt_dir) == os.path.abspath(DEFAULT_CHECKPOINT_DIR)
+                    and len(folder_picker.weights_present(ckpt_dir)) < 5):
+                with st.spinner("Downloading the model files (about 1.7 GB - this takes a few minutes the first time)..."):
+                    fetch_weights.ensure_weights(ckpt_dir)   # only into the default folder, only if files are missing
+            models = get_models(ckpt_dir, device_str, folder_picker.folder_stamp(ckpt_dir))
         except ModuleNotFoundError as e:
             # Most common cause: `pip` installed into a different Python than the one running Streamlit.
             st.error(f"A required Python package is missing: **{e.name}**")

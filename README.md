@@ -68,8 +68,14 @@ Put a `SHA256SUMS` file next to the hosted weights (`sha256sum *.pt > SHA256SUMS
 every download is verified.
 
 **On a hosted copy (e.g. Streamlit Community Cloud) there is no folder to browse** - the server's disk is not your
-PC, and the folder browser is deliberately hidden for anyone who is not at the server. Provide the weights through the
-app's secrets instead (Community Cloud: *Manage app -> Settings -> Secrets*), in TOML:
+PC, and the folder browser is deliberately hidden for anyone who is not at the server. Two ways to give it the weights:
+
+1. **Upload them from your computer through the page.** Set an `APP_PASSWORD` (the upload is only offered to people
+   who have entered it), then open *Upload model files from your computer...* in the sidebar and select all five
+   `.pt` files in one go. They are saved on the server and used for everyone until the server's temp storage is
+   cleared or the app restarts. Each file is ~343 MB, so this takes a few minutes and needs enough server memory.
+2. **Let the server download them** from storage you control, through the app's secrets (Community Cloud:
+   *Manage app -> Settings -> Secrets*), in TOML:
 
 ```toml
 TBR_WEIGHTS_BASE_URL = "https://huggingface.co/<user>/<private-model-repo>/resolve/main"

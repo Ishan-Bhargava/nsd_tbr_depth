@@ -11,6 +11,7 @@ address / proxy just gets the default folder and cannot see or change server pat
 
 import os
 import string
+import tempfile
 
 import streamlit as st
 
@@ -58,6 +59,82 @@ def weights_present(path):
     return [f for f in fw.FOLDS if os.path.isfile(os.path.join(path, fw.weight_filename(f)))]
 
 
+# Where model files uploaded through the page are kept on the server (shared by every visitor, so only the first
+# person has to upload them; it lasts until the server's temp folder is cleared or the app is restarted).
+UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "tbr_uploaded_models")
+
+
+def folder_stamp(path):
+    """Changes whenever one of the 5 checkpoint files is replaced -> lets the model cache notice new files."""
+    out = []
+    for f in fw.FOLDS:
+        p = os.path.join(path, fw.weight_filename(f))
+        try:
+            st_ = os.stat(p)
+            out.append((f, st_.st_size, st_.st_mtime_ns))
+        except OSError:
+            out.append((f, 0, 0))
+    return tuple(out)
+
+
+def save_uploaded_models(files, dest=None):
+    """Save the 5 uploaded checkpoint files into dest (default UPLOAD_DIR). Returns (ok, message).
+    All 5 must be selected together."""
+    dest = dest or UPLOAD_DIR
+    wanted = {fw.weight_filename(f) for f in fw.FOLDS}
+    by_name, ignored = {}, []
+    for uf in files:
+        name = os.path.basename(str(uf.name))
+        (by_name.__setitem__(name, uf) if name in wanted else ignored.append(name))
+    if not by_name:
+        return False, ("None of the selected files has an expected name "
+                       f"({fw.weight_filename(1)} ... {fw.weight_filename(5)}).")
+    missing = sorted(wanted - set(by_name))
+    if missing:
+        return False, f"Received {len(by_name)} of 5 files so far - select all five together (still missing: {len(missing)})."
+    os.makedirs(dest, exist_ok=True)
+    for name, uf in by_name.items():
+        part = os.path.join(dest, name + ".part")
+        with open(part, "wb") as fh:
+            fh.write(uf.getbuffer())
+        os.replace(part, os.path.join(dest, name))        # atomic: a half-written file is never used
+    note = f" (ignored {len(ignored)} other file(s))" if ignored else ""
+    return True, "Model files uploaded" + note
+
+
+def _model_uploader_widget(key):
+    nonce = st.session_state.get(f"{key}_up_nonce", 0)
+    return st.file_uploader("Select the 5 checkpoint files (.pt) from your computer", type=["pt"],
+                            accept_multiple_files=True, key=f"{key}_up_{nonce}")
+
+
+def _remote_upload_ui(key, sel_k):
+    """For visitors who are NOT at the server: let them provide the checkpoints through the browser's file dialog.
+    Only offered when APP_PASSWORD is set (the password gate has already been passed), so strangers cannot replace
+    the models on a public URL."""
+    if not os.environ.get("APP_PASSWORD"):
+        st.caption("To upload model files from your computer here, set an `APP_PASSWORD` in the app's settings first "
+                   "(so only people with the password can replace the models).")
+        return st.session_state[sel_k]
+    flash = st.session_state.pop(f"{key}_flash", None)
+    if flash:
+        st.success(flash)
+    with st.expander("Upload model files from your computer…", expanded=(len(weights_present(st.session_state[sel_k])) == 0)):
+        st.caption("Browse to the folder on your computer, select all 5 `.pt` files in one go. Each is ~343 MB, so this "
+                   "takes a few minutes, and the server needs enough free memory for them.")
+        files = _model_uploader_widget(key)
+        if files:
+            ok, msg = save_uploaded_models(files)
+            if ok:
+                st.session_state[sel_k] = UPLOAD_DIR
+                st.session_state[f"{key}_up_nonce"] = st.session_state.get(f"{key}_up_nonce", 0) + 1   # clears the widget, freeing RAM
+                st.session_state[f"{key}_flash"] = "Model files uploaded - they are ready to use."
+                st.rerun()
+            else:
+                st.info(msg)
+    return st.session_state[sel_k]
+
+
 def _status(path):
     n = len(weights_present(path))
     return n, (f"{n} of 5 model files found" if n else "no model files here")
@@ -79,6 +156,9 @@ def folder_picker(key: str, default_dir: str) -> str:
     if sel_k not in st.session_state:
         st.session_state[sel_k] = default_dir
     selected = st.session_state[sel_k]
+    # models uploaded earlier through the page (by anyone with the password) are used when the default folder is empty
+    if (selected == default_dir and len(weights_present(selected)) < 5 and len(weights_present(UPLOAD_DIR)) == 5):
+        st.session_state[sel_k] = selected = UPLOAD_DIR
 
     n_sel, text = _status(selected)
     local = client_is_local()
@@ -96,7 +176,7 @@ def folder_picker(key: str, default_dir: str) -> str:
         (st.success if n_sel == 5 else st.warning if n_sel else st.error)(text)
 
     if not local:
-        return selected
+        return _remote_upload_ui(key, sel_k)
 
     # ---------------- in-app browser (local visitors only)
     if cur_k not in st.session_state:
