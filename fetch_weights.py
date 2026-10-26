@@ -20,6 +20,7 @@ import hashlib
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 FOLDS = (1, 2, 3, 4, 5)
@@ -34,6 +35,20 @@ def missing_weights(ckpt_dir):
     return [f for f in FOLDS if not os.path.isfile(os.path.join(ckpt_dir, weight_filename(f)))]
 
 
+class _DropAuthOnCrossHostRedirect(urllib.request.HTTPRedirectHandler):
+    """Storage services (Hugging Face, GitHub, S3 ...) redirect downloads to a signed URL on another host. Python would
+    forward the Authorization header there, which leaks the token and makes some of them reject the request."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None and urllib.parse.urlsplit(newurl).netloc != urllib.parse.urlsplit(req.full_url).netloc:
+            new.remove_header("Authorization")
+        return new
+
+
+_OPENER = urllib.request.build_opener(_DropAuthOnCrossHostRedirect)
+
+
 def _request(url, token):
     headers = {"User-Agent": "tbr-depth-app"}
     if token:
@@ -43,7 +58,7 @@ def _request(url, token):
 
 def _read_sums(base_url, token):
     try:
-        with urllib.request.urlopen(_request(base_url.rstrip("/") + "/SHA256SUMS", token), timeout=60) as r:
+        with _OPENER.open(_request(base_url.rstrip("/") + "/SHA256SUMS", token), timeout=60) as r:
             sums = {}
             for line in r.read().decode("utf-8", "replace").splitlines():
                 parts = line.split()
@@ -78,7 +93,7 @@ def ensure_weights(ckpt_dir=None, base_url=None, token=None, log=print):
         log(f"Downloading {name} ...")
         h = hashlib.sha256()
         try:
-            with urllib.request.urlopen(_request(url, token), timeout=120) as r, open(part, "wb") as out:
+            with _OPENER.open(_request(url, token), timeout=120) as r, open(part, "wb") as out:
                 while True:
                     chunk = r.read(1 << 20)
                     if not chunk:
