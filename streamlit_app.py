@@ -8,6 +8,7 @@ Uses the 5-fold DINOv3 ViT-B / 336 px ensemble through infer_tbr_dino_336.py (mu
 Checkpoint folder: set the TBR_CHECKPOINT_DIR environment variable, or edit DEFAULT_CHECKPOINT_DIR below.
 """
 
+import hmac
 import io
 import os
 import sys
@@ -20,6 +21,7 @@ import pandas as pd
 import streamlit as st
 import torch
 
+import fetch_weights
 import infer_tbr_dino_336 as core
 
 DEFAULT_CHECKPOINT_DIR = os.environ.get("TBR_CHECKPOINT_DIR", core.DEFAULT_CHECKPOINT_DIR)
@@ -29,10 +31,31 @@ LO, HI = core.TRAINED_RANGE_MM
 st.set_page_config(page_title="Tyre tread depth", page_icon="🛞", layout="centered")
 
 
+def password_gate():
+    """If the APP_PASSWORD environment variable (a Replit Secret) is set, nothing is shown until it is entered.
+    Recommended for any deployment with a public URL."""
+    expected = os.environ.get("APP_PASSWORD")
+    if not expected or st.session_state.get("auth_ok"):
+        return
+    st.title("🛞 Tyre tread depth")
+    entered = st.text_input("Password", type="password")
+    if entered:
+        if hmac.compare_digest(entered.encode(), expected.encode()):
+            st.session_state["auth_ok"] = True
+            st.rerun()
+        else:
+            st.error("Wrong password.")
+    st.stop()
+
+
+password_gate()
+
+
 # ---------------------------------------------------------------- cached resources
-@st.cache_resource(show_spinner="Loading the 5 models (first start only)...")
+@st.cache_resource(show_spinner="Loading the 5 models (first start only; downloads the weights if they are missing)...")
 def get_models(checkpoint_dir: str, device_str: str):
     try:
+        fetch_weights.ensure_weights(checkpoint_dir)      # no-op when the 5 files are already there
         return core.load_models(checkpoint_dir, None, torch.device(device_str))
     except SystemExit as e:                       # load_models exits with a message on problems
         raise RuntimeError(str(e))
@@ -83,7 +106,7 @@ device_str = "cuda" if torch.cuda.is_available() else "cpu"
 with st.sidebar:
     st.header("Settings")
     st.caption(f"Running on **{'GPU' if device_str == 'cuda' else 'CPU'}**")
-    ckpt_dir = st.text_input("Checkpoint folder", DEFAULT_CHECKPOINT_DIR)
+    ckpt_dir = DEFAULT_CHECKPOINT_DIR                     # set with the TBR_CHECKPOINT_DIR environment variable
     st.caption("All 5 models are always used; the answer is their average.")
     tta = st.checkbox("Flip check (average with a mirrored copy)", value=False, help="Twice as slow.")
     show_attention = st.checkbox("Show where the model looked", value=True)
@@ -100,9 +123,6 @@ if uploaded is not None:
     run = st.button("Measure tread depth", type="primary", width="stretch")
 
     if run:
-        if not os.path.isdir(ckpt_dir):
-            st.error(f"Checkpoint folder not found: {ckpt_dir}")
-            st.stop()
         try:
             models = get_models(ckpt_dir, device_str)
         except ModuleNotFoundError as e:

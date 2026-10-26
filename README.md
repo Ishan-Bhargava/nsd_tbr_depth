@@ -23,7 +23,8 @@ checkpoints_best/
   dinov3_vitb16_depth_fold5_best.pt
 ```
 
-(or point to another folder with the `TBR_CHECKPOINT_DIR` environment variable / `--checkpoints`).
+(or point to another folder with the `TBR_CHECKPOINT_DIR` environment variable / `--checkpoints`; on a server the
+app can also download them for you - see *Deploy on Replit*).
 
 ### Web app
 ```bash
@@ -39,6 +40,24 @@ python infer_tbr_dino_336.py --input labels.csv                # CSV with filena
 ```
 Outputs the ensemble depth, each fold's prediction, the spread between folds and flags
 (`LOW_CONFIDENCE`, `OUT_OF_RANGE`, `NO_FRAMES`).
+
+## Deploy on Replit (CPU, good for demos)
+
+1. In Replit: *Create App -> Import from GitHub* and pick this repo. `.replit` already has the run command and port.
+2. Get the 5 weight files onto the machine - either way works:
+   - **Download at start-up (recommended).** Host the five `.pt` files at any HTTPS location (private storage, a release
+     asset, ...) so that `<base>/dinov3_vitb16_depth_fold1_best.pt` etc. resolve, and add Replit **Secrets**:
+     `TBR_WEIGHTS_BASE_URL` = that base URL, and `TBR_WEIGHTS_TOKEN` if the storage needs a bearer token.
+     Optionally put a `SHA256SUMS` file next to them (`sha256sum *.pt > SHA256SUMS`, or `Get-FileHash` on Windows)
+     and every download is verified.
+   - **Or upload by hand** into a `checkpoints_best/` folder using Replit's file panel.
+3. Add a Secret `APP_PASSWORD` - a deployed Replit app has a public URL, and with this set nothing is shown until the
+   password is entered.
+4. *Publish -> Reserved VM* (the models stay loaded; Autoscale would reload them after every idle period). Pick a machine
+   with plenty of vCPUs (8+) and at least 16 GB of memory - there is no GPU, so more vCPUs means faster answers
+   (roughly 1-2 minutes per video on a 12-core CPU).
+
+The first prediction after a fresh start loads (and, if needed, downloads) the models, so it is slower.
 
 ## Speed
 About 1-2 minutes per video on CPU with all 5 models; expected a few seconds on a GPU (T4 class).
