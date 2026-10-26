@@ -9,7 +9,7 @@ Input can be
 For every video it prints/saves the ENSEMBLE depth (mean of the fold models), every fold's own prediction, the spread
 between folds (a cheap confidence signal) and flags:
   LOW_CONFIDENCE   folds disagree by more than SPREAD_WARN_MM (std)
-  OUT_OF_RANGE     the prediction falls outside the 4-24 mm range the models were trained on -> do not trust it
+  OUT_OF_RANGE     the prediction falls outside the 7-21 mm range the models were trained on -> do not trust it
   NO_FRAMES        the video could not be read
 
 Preprocessing is IDENTICAL to training: rotate landscape frames to portrait, keep the 16 sharpest of ~48 evenly spaced
@@ -51,7 +51,7 @@ ROTATE_FRAMES = True
 USE_AMP_ON_CUDA = True               # training used fp16 autocast on the backbone
 
 # --- reporting ---
-TRAINED_RANGE_MM = (4.0, 24.0)       # depths the models were trained on
+TRAINED_RANGE_MM = (7.0, 21.0)       # depths the models were trained on
 SPREAD_WARN_MM = 1.0                 # std across folds above this -> LOW_CONFIDENCE
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".avi", ".mkv", ".m4v")
 

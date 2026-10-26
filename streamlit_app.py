@@ -87,8 +87,6 @@ with st.sidebar:
     st.caption("All 5 models are always used; the answer is their average.")
     tta = st.checkbox("Flip check (average with a mirrored copy)", value=False, help="Twice as slow.")
     show_attention = st.checkbox("Show where the model looked", value=True)
-    st.divider()
-    st.caption(f"Trained for tread depths of {LO:.0f}–{HI:.0f} mm.")
 
 # ---------------------------------------------------------------- main page
 st.title("🛞 Tyre tread depth")
@@ -152,7 +150,7 @@ if uploaded is not None:
         st.metric("Tread depth", f"{depth:.1f} mm")
 
         if not (LO <= depth < HI):
-            st.error(f"The result is outside the {LO:.0f}–{HI:.0f} mm range the models were trained on, so it is not reliable.")
+            st.error("This result is outside the range the model was trained on, so treat it as unreliable.")
         elif spread > core.SPREAD_WARN_MM:
             st.warning(f"Low confidence: the models disagree by about ±{spread:.1f} mm. Try filming again in better light, "
                        f"with the tread in focus.")

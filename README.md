@@ -5,7 +5,7 @@ Upload a short video of a truck-tyre tread and get the tread depth in millimetre
 - **Model:** DINOv3 ViT-B/16 (via `timm`) at 336 px, 16 frames per video, spatial + temporal attention pooling,
   regression head. Final answer = average of a **5-fold ensemble**; the spread between the 5 models is shown as a
   confidence signal.
-- **Trained range:** 4-24 mm. Predictions outside that range are flagged as unreliable.
+- **Trained range:** 7-21 mm. A prediction that lands outside that range is flagged as unreliable.
 
 ## Quick start
 
@@ -46,7 +46,9 @@ About 1-2 minutes per video on CPU with all 5 models; expected a few seconds on 
 ## Limitations
 - Estimates only; not a certified measurement. Single videos can be off by more than the typical error (about 1 mm
   on held-out data in testing).
-- Accuracy is weakest at the ends of the range (very shallow, below about 6 mm, and very deep, above about 20 mm).
+- Accuracy is weakest near the ends of the 7-21 mm range. Tyres outside the range are not handled: the model tends to
+  pull them toward the middle (a very worn tyre can read much deeper than it is), so the out-of-range flag will not
+  always catch them.
 - Training labels are rounded to whole millimetres and a few are wrong, which limits how accurate the model can be
   measured to be.
 - Videos are processed on the machine running the app; nothing is sent elsewhere by this code.
