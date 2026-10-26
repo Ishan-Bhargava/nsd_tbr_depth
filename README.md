@@ -27,10 +27,17 @@ checkpoints_best/
 app can also download them for you - see *Deploy on Replit*).
 
 ### Web app
+On Windows you can just double-click `run_app.bat` (it checks the packages first). Or:
 ```bash
 streamlit run streamlit_app.py
 # others on your network:  streamlit run streamlit_app.py --server.address 0.0.0.0 --server.port 8501
 ```
+
+**Choosing the model folder.** Open the app at `http://localhost:8501` on the computer that runs it and use
+*Change folder...* in the sidebar to browse to the folder with the five `.pt` files (type a path, go up, open
+sub-folders; the page shows how many of the 5 files it found). The browser is shown **only** to someone on that same
+computer: anyone reaching the app through a network address sees just the default folder's status, never any paths.
+Set `TBR_ALLOW_BROWSE=0` to switch it off completely on shared deployments (the Replit config does).
 
 ### Command line
 ```bash

@@ -1,6 +1,9 @@
 modules = ["python-3.11"]
 run = "streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0 --server.headless true"
 
+[env]
+TBR_ALLOW_BROWSE = "0"
+
 [deployment]
 build = ["sh", "-c", "pip install -r requirements-replit.txt"]
 run = ["sh", "-c", "streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0 --server.headless true"]

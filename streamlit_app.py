@@ -22,6 +22,7 @@ import streamlit as st
 import torch
 
 import fetch_weights
+import folder_picker
 import infer_tbr_dino_336 as core
 
 DEFAULT_CHECKPOINT_DIR = os.environ.get("TBR_CHECKPOINT_DIR", core.DEFAULT_CHECKPOINT_DIR)
@@ -52,10 +53,11 @@ password_gate()
 
 
 # ---------------------------------------------------------------- cached resources
-@st.cache_resource(show_spinner="Loading the 5 models (first start only; downloads the weights if they are missing)...")
+@st.cache_resource(max_entries=1, show_spinner="Loading the models (takes a moment when the folder changes)...")
 def get_models(checkpoint_dir: str, device_str: str):
     try:
-        fetch_weights.ensure_weights(checkpoint_dir)      # no-op when the 5 files are already there
+        if os.path.abspath(checkpoint_dir) == os.path.abspath(DEFAULT_CHECKPOINT_DIR):
+            fetch_weights.ensure_weights(checkpoint_dir)  # downloads only into the default folder, and only if files are missing
         return core.load_models(checkpoint_dir, None, torch.device(device_str))
     except SystemExit as e:                       # load_models exits with a message on problems
         raise RuntimeError(str(e))
@@ -106,7 +108,9 @@ device_str = "cuda" if torch.cuda.is_available() else "cpu"
 with st.sidebar:
     st.header("Settings")
     st.caption(f"Running on **{'GPU' if device_str == 'cuda' else 'CPU'}**")
-    ckpt_dir = DEFAULT_CHECKPOINT_DIR                     # set with the TBR_CHECKPOINT_DIR environment variable
+    # Local visitors can browse to the model folder; remote visitors always get DEFAULT_CHECKPOINT_DIR
+    # (set with the TBR_CHECKPOINT_DIR environment variable, or switch browsing off with TBR_ALLOW_BROWSE=0).
+    ckpt_dir = folder_picker.folder_picker("ckpt", DEFAULT_CHECKPOINT_DIR)
     st.caption("All 5 models are always used; the answer is their average.")
     tta = st.checkbox("Flip check (average with a mirrored copy)", value=False, help="Twice as slow.")
     show_attention = st.checkbox("Show where the model looked", value=True)
@@ -138,7 +142,7 @@ if uploaded is not None:
 
         fold_ids = sorted(models)                      # always every available fold
         if len(fold_ids) != 5:
-            st.warning(f"Expected 5 models but found {len(fold_ids)} in {ckpt_dir}. Check the checkpoint folder.")
+            st.warning(f"Expected 5 models but found {len(fold_ids)} in the selected folder. Pick the folder with all 5 files.")
 
         suffix = os.path.splitext(uploaded.name)[1] or ".mp4"
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
