@@ -1,0 +1,6 @@
+[server]
+maxUploadSize = 500        # MB; phone videos are often 50-200 MB
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false

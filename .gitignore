@@ -1,0 +1,22 @@
+# model weights are large (343 MB each) -- do NOT commit them; see README
+*.pt
+*.pth
+*.safetensors
+checkpoints_best/
+checkpoints*/
+# data
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.m4v
+# python / editor
+__pycache__/
+*.pyc
+.venv/
+venv/
+.vscode/
+.idea/
+# outputs
+tbr_predictions.csv
+*.log
