@@ -25,6 +25,20 @@ import fetch_weights
 import folder_picker
 import infer_tbr_dino_336 as core
 
+def _secrets_to_env():
+    """Hosting services such as Streamlit Community Cloud keep settings in 'secrets'. Copy the ones this app uses into
+    environment variables (unless already set) so every module reads them the same way."""
+    names = ("APP_PASSWORD", "TBR_CHECKPOINT_DIR", "TBR_WEIGHTS_BASE_URL", "TBR_WEIGHTS_TOKEN", "TBR_ALLOW_BROWSE")
+    try:
+        for name in names:
+            if name not in os.environ and name in st.secrets:
+                os.environ[name] = str(st.secrets[name])
+    except Exception:                                  # noqa: BLE001  (no secrets file when running locally)
+        pass
+
+
+_secrets_to_env()
+
 DEFAULT_CHECKPOINT_DIR = os.environ.get("TBR_CHECKPOINT_DIR", core.DEFAULT_CHECKPOINT_DIR)
 UPLOAD_TYPES = [e.lstrip(".") for e in core.VIDEO_EXTENSIONS]
 LO, HI = core.TRAINED_RANGE_MM

@@ -53,7 +53,8 @@ Outputs the ensemble depth, each fold's prediction, the spread between folds and
 
 ## Hosting notes
 
-Settings are read from environment variables (on a hosting service: its "secrets" / environment settings):
+Settings are read from environment variables, or from the host's **secrets** (the app copies the five names below
+from Streamlit secrets into the environment at start-up):
 
 | Variable | Purpose |
 |---|---|
@@ -65,6 +66,18 @@ Settings are read from environment variables (on a hosting service: its "secrets
 
 Put a `SHA256SUMS` file next to the hosted weights (`sha256sum *.pt > SHA256SUMS`, or `Get-FileHash` on Windows) and
 every download is verified.
+
+**On a hosted copy (e.g. Streamlit Community Cloud) there is no folder to browse** - the server's disk is not your
+PC, and the folder browser is deliberately hidden for anyone who is not at the server. Provide the weights through the
+app's secrets instead (Community Cloud: *Manage app -> Settings -> Secrets*), in TOML:
+
+```toml
+TBR_WEIGHTS_BASE_URL = "https://huggingface.co/<user>/<private-model-repo>/resolve/main"
+TBR_WEIGHTS_TOKEN    = "<read-only token>"
+APP_PASSWORD         = "<a password for the page>"
+```
+
+The sidebar then says the models are downloaded the first time someone presses *Measure* (about 1.7 GB, a few minutes).
 
 **Resources.** With all 5 models loaded the app uses about **2.5 GB of RAM** on CPU (measured), plus whatever the
 uploaded video needs. Free hosting tiers with a memory cap near 2-3 GB (Streamlit Community Cloud documents a

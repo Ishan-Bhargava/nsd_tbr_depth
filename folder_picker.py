@@ -85,7 +85,15 @@ def folder_picker(key: str, default_dir: str) -> str:
     st.markdown("**Model folder**")
     if local:
         st.caption(f"`{selected}`")
-    (st.success if n_sel == 5 else st.warning if n_sel else st.error)(text)
+    will_download = (n_sel < 5 and bool(os.environ.get("TBR_WEIGHTS_BASE_URL"))
+                     and os.path.abspath(selected) == os.path.abspath(default_dir))
+    if will_download:
+        st.info("The model files are downloaded the first time you press Measure "
+                "(about 1.7 GB, so that first run takes a few minutes).")
+    elif n_sel == 0 and not local:
+        st.error("The model files are not installed on this server.")
+    else:
+        (st.success if n_sel == 5 else st.warning if n_sel else st.error)(text)
 
     if not local:
         return selected
